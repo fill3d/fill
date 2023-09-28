@@ -16,3 +16,6 @@ In a few steps:
 FILL_3D_API_KEY="<Your Fill 3D API key here>"
 ```
 4. Open a terminal and run `npm run dev` to start the development server. Then open the webpage in your browser and fill!
+
+## Notes
+- PRs are welcome!
