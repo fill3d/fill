@@ -1,63 +1,57 @@
-import clsx from "clsx"
-import { saveAs } from "file-saver"
-import { SparklesIcon } from "@heroicons/react/24/outline"
-import dynamic from "next/dynamic"
-import { useEffect, useMemo, useState } from "react"
-import ReactBeforeSliderComponent from "react-before-after-slider-component"
-import { useStopwatch } from "react-timer-hook"
-import { OpenGraph } from "../components/openGraph"
-import { NavBar } from "../components/navbar"
-import { Notification } from "../components/notification"
-import { ImageUpload } from "../components/imageUpload"
-import type { RoiRendererProps } from "../components/renderer"
-import { PromptForm, Prompt } from "../components/promptForm"
-import { ResultMenu } from "../components/resultMenu"
-import { useSearch } from "../hooks/search"
-import { useFill3d, Prompt as FillPrompt } from "../hooks/fill3d"
-import { useSample } from "../hooks/sample"
+import { ArrowRightIcon, PhotoIcon, SparklesIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { Loader2 } from "lucide-react"
+import { useCallback, useState } from "react"
+import { useDropzone } from "react-dropzone"
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
+import { dracula } from "react-syntax-highlighter/dist/cjs/styles/prism"
+import { OpenGraph } from "@/components/openGraph"
+import { createScene, createRender, uploadImage, type Scene, type Render } from "@/lib/fill3d"
 
-const RoiRenderer = dynamic<RoiRendererProps>(() => import("../components/renderer"), { ssr: false });
-
-export default function Fill () {  
-  // Loading and error state
-  const { imageUrl: sampleImageUrl, prompts: samplePrompts } = useSample();
-  const { totalSeconds: loadingTime, start: startWatch, reset: resetWatch } = useStopwatch({ autoStart: false });
-  const [error, setError] = useState<string>(null);
-  // Prompts
-  const [image, setImage] = useState<File>(undefined);
-  const [imageUrl, setImageUrl] = useState<string>(sampleImageUrl);
-  const [prompts, setPrompts] = useState<Record<string, Prompt>>(samplePrompts ?? { });
-  const [activePromptId, setActivePromptId] = useState<string>(Object.keys(prompts)[0]);
-  useEffect(() => {
-    if (image === undefined)
-      return;
-    const url = image ? URL.createObjectURL(image) : null;
+export default function Fill () {
+  const [imageUrl, setImageUrl] = useState<string>(null);
+  const [scene, setScene] = useState<Scene>(null);
+  const [render, setRender] = useState<Render>(null);
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState<"image" | "scene" | "render">(null);
+  // Dropzone
+  const onDrop = useCallback(async (files: File[]) => {
+    // Reset
+    setImageUrl(null);
+    setScene(null);
+    setRender(null);
+    setLoading("image");
+    // Upload
+    const image = files[0];
+    const url = image ? await uploadImage(image) : null;
+    // Update
     setImageUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [image]);
-  // Search
-  const { search, id: searchId, results: searchResults, loading: searching, error: searchError } = useSearch({ });
-  useEffect(() => {
-    const prompt = prompts[searchId];
-    if (prompt)
-      setPrompts({ ...prompts, [prompt.uid]: { ...prompt, choices: searchResults, choiceIdx: 0 } });
-  }, [searchId, searchResults]);
-  useEffect(() => setError(searchError), [searchError]);
-  // Generate
-  const { fill, loading, resultUrl, error: renderError } = useFill3d({ });
-  const fillPrompts = useMemo<FillPrompt[]>(
-    () => Object.values(prompts).map(({ uid, choices, choiceIdx, prompt, ...rest }) => ({ ...rest, id: choices?.[choiceIdx]?.id })),
-    [prompts]
-  );
-  useEffect(() => setError(renderError), [renderError]);
-  useEffect(() => loading ? startWatch() : resetWatch(null, false), [loading]);
-  // Reset
-  const reset = () => {
-    setImage(null);
-    fill(null);
-    setPrompts({ });
-    setActivePromptId(null);
+    setLoading(null);
+  }, []);
+  const { getInputProps, open: openDropZone } = useDropzone({
+    onDrop,
+    accept: { "image/jpeg": [".jpg", ".jpeg"] },
+    maxFiles: 1,
+    noClick: true,
+    disabled: !!loading
+  });
+  // Handlers
+  const onCreateScene = async () => {
+    if (!imageUrl)
+      return;
+    setLoading("scene");
+    setScene(null);
+    const scene = await createScene(imageUrl);
+    setScene(scene);
+    setLoading(null);
   };
+  const onGenerateImage = async () => {
+    if (!scene)
+      return;
+    setLoading("render");
+    const render = await createRender(scene.id, prompt);
+    setRender(render);
+    setLoading(null);
+  }
   // Render
   return (
     <div className="h-screen">
@@ -66,120 +60,157 @@ export default function Fill () {
       <OpenGraph title="Fill" />
 
       {/* Main */}
-      <main className="h-screen bg-black text-gray-200 flex flex-col">
+      <main className="flex flex-col px-12 py-12 gap-y-10">
 
-        <NavBar />
+        <h1 className="text-6xl">
+          Fill 3D API Demo!
+        </h1>
+        
+        {/* Image */}
+        <div className="">
 
-        <Notification
-          title="An error occurred"
-          description={error}
-          show={!!error}
-          error
-          timeout={6_000}
-          onClose={() => setError(null)}
-        />
+          {/* Upload button */}
+          <button
+            onClick={openDropZone}
+            disabled={!!loading}
+            className="flex flex-row items-center gap-x-2 group"
+          >
+            <h2 className="text-4xl">
+              1.{" "}
+              <span className={!loading ? "group-hover:underline" : ""}>
+                First, upload an image
+              </span>
+              .
+            </h2>
+            <input {...getInputProps()} />
+            {
+              loading !== "image" &&
+              <PhotoIcon className="w-12 h-auto px-2 py-2 inline" />
+            }
+            {
+              loading === "image" &&
+              <div className="">
+                <Loader2 strokeWidth={2.5} className="w-12 h-12 py-2 text-gray-600 animate-spin" />
+              </div>
+            }
+          </button>
 
-        <div className="px-8 gap-x-8 flex-grow grid grid-cols-1 md:grid-cols-4 md:grid-rows-4 overflow-y-auto">
-
-          {/* Result */}
-          <div className="py-8 col-span-3 md:row-span-full">
-
-            {/* Image area */}
-            <div className={clsx("w-full h-full rounded-lg overflow-hidden", imageUrl ? "" : "bg-gray-800")}>
-
-              {/* Image upload */}
-              {
-                !imageUrl &&
-                <ImageUpload
-                  onUpload={setImage}
-                  className="w-full h-full"
-                />
-              }
-
-              {/* ROI renderer */}
-              {
-                imageUrl && !resultUrl &&
-                <RoiRenderer
-                  image={imageUrl}
-                  rois={Object.values(prompts)}
-                  loading={loading ? loadingTime / 60 : undefined}
-                  activeRoiId={activePromptId}
-                  onUpdateRoi={roi => setPrompts({ ...prompts, [roi.uid]: roi })}
-                  onSelectRoi={setActivePromptId}
-                  className="w-full ring-1 ring-inset ring-gray-700 rounded-lg overflow-hidden"
-                />
-              }
-
-              {/* Result renderer */}
-              {
-                imageUrl && resultUrl &&
-                <ReactBeforeSliderComponent
-                  firstImage={{ imageUrl: imageUrl, alt: "Original image" }}
-                  secondImage={{ imageUrl: resultUrl, alt: "Result image" }}
-                  className={clsx("object-contain")}
-                />
-              }
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="px-4 py-8 md:row-span-full overflow-y-auto">
-            
-            <div className="grid max-w-7xl grid-cols-1 gap-x-8 gap-y-10 pb-8 md:grid-cols-3">
-
-                {/* Generate button */}
-                {
-                  imageUrl && !resultUrl &&
-                  <div className="flex flex-row justify-between md:col-span-3">
-                    <button
-                      type="button"
-                      onClick={reset}
-                      className="flex flex-row justify-center items-center gap-x-2 rounded-md ring-1 ring-gray-500 ring-inset px-3 py-2 text-lg font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                    >
-                      Reset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => fill({ image: image ?? imageUrl, prompts: fillPrompts })}
-                      className="flex flex-row justify-center items-center gap-x-2 rounded-md bg-indigo-600 px-3 py-2 text-lg font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-                    >
-                      <SparklesIcon className="w-5 h-5"/>
-                      <span>
-                        Generate
-                      </span>
-                    </button>
-                  </div>
-                }
-
-                {/* Completion form */}
-                {
-                  imageUrl && resultUrl &&
-                  <ResultMenu
-                    onSave={() => saveAs(resultUrl, "fill3d.png")}
-                    onEdit={() => fill(null)}
-                    onReset={reset}
-                    className="md:col-span-3"
-                  />
-                }
-
-                {/* Prompt form */}
-                {
-                  imageUrl && !resultUrl && !loading && activePromptId &&
-                  <PromptForm
-                    prompt={prompts[activePromptId]}
-                    onUpdate={prompt => setPrompts({ ...prompts, [prompt.uid]: prompt })}
-                    onSearch={prompt => search({ id: prompt.uid, query: prompt.prompt })}
-                    onDelete={() => {
-                      setPrompts(Object.fromEntries(Object.entries(prompts).filter(e => e[0] !== activePromptId)));
-                      setActivePromptId(null);
-                    }}
-                    loading={searching}
-                    className="sm:col-span-3 overflow-y-auto"
-                  />
-                }
-            </div>
-          </div>
+          {/* Image */}
+          {
+            imageUrl &&
+            <img src={imageUrl} className="w-full lg:w-1/2 h-auto rounded-lg" />
+          }
         </div>
+        
+        {/* Create scene */}
+        <div className="space-y-2">
+          <button
+            onClick={onCreateScene}
+            disabled={!!loading}
+            className="text-left group"
+          >
+            <div className="flex flex-row items-center">
+              <h2 className="text-4xl">
+                2.{" "}
+                <span className={!loading ? "group-hover:underline" : ""}>
+                  Next, create a scene
+                </span>
+                .
+              </h2>
+              {
+                loading !== "scene" &&
+                <ArrowRightIcon className="w-12 h-auto px-2 py-2 inline" />
+              }
+              {
+                loading === "scene" &&
+                <div className="">
+                  <Loader2 strokeWidth={2.5} className="w-12 h-12 py-2 text-gray-600 animate-spin" />
+                </div>
+              }
+            </div>
+          </button>
+          <p className="text-2xl max-w-3xl">
+            Fill 3D creates rich metadata from your image.<br/> We call this a scene.
+          </p>
+          {
+            scene &&
+            <SyntaxHighlighter
+              language="json"
+              style={dracula}
+              PreTag="div"
+              className="!rounded-xl inline-block"
+            >
+              {JSON.stringify(scene, null, 2)}
+            </SyntaxHighlighter>
+          }
+        </div>
+
+        {/* Generate image */}
+        <div className="space-y-2">
+          <button
+            onClick={onGenerateImage}
+            disabled={!!loading}
+            className="text-left group"
+          >
+            <div className="flex flex-row items-center">
+              <h2 className="text-4xl">
+                3.{" "}
+                <span className={!loading ? "group-hover:underline" : ""}>
+                  Generate an image
+                </span>
+                !
+              </h2>
+              {
+                loading !== "render" &&
+                <SparklesIcon className="w-12 h-auto px-2 py-2 inline visible group-hover:visible" />
+              }
+              {
+                loading === "render" &&
+                <div className="">
+                  <Loader2 strokeWidth={2.5} className="w-12 h-12 py-2 text-gray-600 animate-spin" />
+                </div>
+              }
+            </div>
+          </button>
+          {
+            !render &&
+            <textarea
+              rows={3}
+              className="block w-1/2 border-0 border-b border-transparent p-2 text-gray-900 placeholder:text-gray-700 focus:border-indigo-600 focus:ring-0 text-2xl leading-6"
+              placeholder="Describe what objects you want placed where..."
+              value={prompt}
+              disabled={!!loading}
+              onChange={e => setPrompt(e.target.value)}
+            />
+          }
+          {
+            render &&
+            <div className="">
+              <img
+                src={render.image}
+                className="w-full lg:w-1/2 h-auto rounded-lg mb-4"
+              />
+              <SyntaxHighlighter
+                language="json"
+                style={dracula}
+                PreTag="div"
+                className="!rounded-xl inline-block !mb-4"
+              >
+                {JSON.stringify(render, null, 2)}
+              </SyntaxHighlighter>
+              <button
+                onClick={() => setRender(null)}
+                className="inline group flex flex-row"
+              >
+                <p className="text-2xl group-hover:underline">
+                  Clear
+                </p>
+                <XMarkIcon className="w-8 h-auto" />
+              </button>
+            </div>
+          }
+        </div>
+
       </main>
     </div>
   );

@@ -6,7 +6,6 @@
 
 html, body, #root {
   min-height: 100vh;
-  background-color: black;
 }
 
 a:hover {
