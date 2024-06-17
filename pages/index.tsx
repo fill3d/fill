@@ -40,6 +40,7 @@ export default function Fill () {
       return;
     setLoading("scene");
     setScene(null);
+    setRender(null);
     const scene = await createScene(imageUrl);
     setScene(scene);
     setLoading(null);
@@ -94,6 +95,12 @@ export default function Fill () {
               </div>
             }
           </button>
+          {
+            !imageUrl &&
+            <p className="text-2xl max-w-xl">
+              The image must be of an empty room with clearly visible and empty floors.
+            </p>
+          }
 
           {/* Image */}
           {
@@ -194,7 +201,8 @@ export default function Fill () {
                 language="json"
                 style={dracula}
                 PreTag="div"
-                className="!rounded-xl inline-block !mb-4"
+                wrapLongLines
+                className="!rounded-xl inline-block !mb-4 max-w-3xl"
               >
                 {JSON.stringify(render, null, 2)}
               </SyntaxHighlighter>

@@ -55,7 +55,9 @@ export interface Render {
  */
 export async function uploadImage (image: File): Promise<string> {
   const response = await fetch("/api/upload", { method: "POST" });
-  const { url } = await response.json();
+  const { url, error } = await response.json();
+  if (error)
+    throw new Error(error);
   await fetch(url, {
     method: "PUT",
     body: await image.arrayBuffer(),
