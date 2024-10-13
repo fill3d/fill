@@ -156,13 +156,13 @@ export default function Fill () {
         <div className="space-y-2">
           <button
             onClick={onGenerateImage}
-            disabled={!!loading}
+            disabled={!!loading || !prompt}
             className="text-left group"
           >
             <div className="flex flex-row items-center">
               <h2 className="text-4xl">
                 3.{" "}
-                <span className={!loading ? "group-hover:underline" : ""}>
+                <span className={!loading && prompt ? "group-hover:underline" : ""}>
                   Generate an image
                 </span>
                 !
@@ -183,8 +183,8 @@ export default function Fill () {
             !render &&
             <textarea
               rows={3}
-              className="block w-1/2 border-0 border-b border-transparent p-2 text-gray-900 placeholder:text-gray-700 focus:border-indigo-600 focus:ring-0 text-2xl leading-6"
-              placeholder="Describe what objects you want placed where..."
+              className="block w-1/2 border border-gray-400 rounded-md p-2 text-gray-900 placeholder:text-gray-700 focus:border-indigo-600 focus:ring-0 text-2xl leading-6"
+              placeholder="Describe how you want the room staged..."
               value={prompt}
               disabled={!!loading}
               onChange={e => setPrompt(e.target.value)}

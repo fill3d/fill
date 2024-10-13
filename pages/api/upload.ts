@@ -5,7 +5,7 @@ export default async function handler (request: NextApiRequest, response: NextAp
   if (request.method !== "POST")
     return response.status(405).end();
   // Get url
-  const res = await fetch("https://www.fill3d.ai/api/upload", {
+  const res = await fetch("https://www.fill3d.ai/api/v1/uploads", {
     method: "POST",
     headers: { "Authorization": `Bearer ${process.env.FILL3D_API_KEY}` }
   });

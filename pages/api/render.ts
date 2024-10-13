@@ -6,7 +6,7 @@ export default async function handler (request: NextApiRequest, response: NextAp
   if (method !== "POST")
     return response.status(405).end();
   // Generate image
-  const res = await fetch(`https://www.fill3d.ai/api/scenes/${sceneId}/render`, {
+  const res = await fetch(`https://www.fill3d.ai/api/v1/scenes/${sceneId}/render`, {
     method: "POST",
     body: JSON.stringify({ prompt }),
     headers: {
