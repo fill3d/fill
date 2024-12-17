@@ -7,7 +7,11 @@ export default async function handler (request: NextApiRequest, response: NextAp
   // Get url
   const res = await fetch("https://www.fill3d.ai/api/v1/uploads", {
     method: "POST",
-    headers: { "Authorization": `Bearer ${process.env.FILL3D_API_KEY}` }
+    headers: { "Authorization": `Bearer ${process.env.FILL3D_API_KEY}` },
+    body: JSON.stringify({
+      type: "image",
+      name: "image.jpg"
+    })
   });
   const { url, error } = await res.json();
   // Check error

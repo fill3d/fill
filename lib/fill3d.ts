@@ -64,6 +64,7 @@ export async function uploadImage (image: File): Promise<string> {
     headers: { "Content-Type": "image/jpeg" }
   });
   const result = new URL(url);
+  result.hostname = "cdn.fill3d.ai";
   result.search = "";
   return result.toString();
 }
